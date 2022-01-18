@@ -2,7 +2,7 @@ from django.http.response import HttpResponse
 from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from .models import Room, Topics
+from .models import Room, Topics, Message
 from .forms import RoomForm
 from django.contrib.auth.models import User
 from django.contrib import messages
@@ -83,7 +83,17 @@ def home(request):
 
 def room(request, pk):
     room = Room.objects.get(id=pk)
-    context = {'room': room}
+    room_messages = room.message_set.all()
+    participants = room.participants.all()
+    if request.method == 'POST':
+        message = Message.objects.create(
+            room=room,
+            user=request.user,
+            body=request.POST.get('body')
+        )
+        room.participants.add(request.user)
+    context = {'room': room, 'room_messages': room_messages,
+               'participants': participants}
     return render(request, 'base/room.html', context)
 
 
@@ -123,3 +133,12 @@ def deleteRoom(request, pk):
         room.delete()
         return redirect('home')
     return render(request, 'base/delete.html', {'obj': room})
+
+
+@login_required(login_url='login')
+def deleteMessage(request, pk):
+    message = Message.objects.get(id=pk)
+    if request.method == 'POST':
+        message.delete()
+        return redirect('home')
+    return render(request, 'base/delete.html', {'obj': message})
